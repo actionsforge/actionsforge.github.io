@@ -1,0 +1,67 @@
+name: update-gh-pages-metrics
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # Weekly schedule
+  workflow_dispatch: # Manual trigger
+
+permissions:
+  contents: write
+  statuses: write
+
+jobs:
+  update-metrics:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Install jq for JSON processing
+      - name: Install jq
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
+
+      # Step 3: Fetch and generate metrics.json
+      - name: Generate metrics.json
+        env:
+          API_URL: "https://api.github.com/orgs/${{ github.repository_owner }}/repos"
+          METRICS_FILE: "data/metrics.json"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Validate token availability
+          if [[ -z "$GITHUB_TOKEN" ]]; then
+              echo "Error: GITHUB_TOKEN is not available."
+              exit 1
+          fi
+
+          # Prepare directories
+          rm -rf data && mkdir -p data
+
+          # Fetch repository data
+          status_code=$(curl -s -o response.json -w "%{http_code}" -H "Authorization: token $GITHUB_TOKEN" "$API_URL")
+
+          # Check HTTP status code
+          if [ "$status_code" -ne 200 ]; then
+              echo "Failed to fetch repository data. HTTP Status: $status_code"
+              echo "Response:"
+              cat response.json
+              exit 1
+          fi
+
+          # Parse and sort repositories by stargazers_count (top 5)
+          repos=$(jq -r '.[] | {(.name): .stargazers_count}' response.json | jq -s add | jq -r 'to_entries | sort_by(-.value)[:5] | from_entries')
+
+          # Generate metrics.json
+          echo "$repos" | jq -r '.' > "$METRICS_FILE"
+
+          echo "metrics.json generated successfully."
+
+      # Step 4: Commit and push changes
+      - name: Commit and push changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "Update metrics.json with top repositories"
+          add: "data/metrics.json"
