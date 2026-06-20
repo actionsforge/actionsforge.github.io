@@ -16,7 +16,7 @@ jobs:
     steps:
       # Step 1: Checkout the repository
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 #v7.0.0
 
       # Step 2: Install jq for JSON processing
       - name: Install jq
@@ -61,7 +61,7 @@ jobs:
 
       # Step 4: Commit and push changes
       - name: Commit and push changes
-        uses: EndBug/add-and-commit@v9
+        uses: EndBug/add-and-commit@290ea2c423ad77ca9c62ae0f5b224379612c0321 #v10.0.0
         with:
           message: "Update metrics.json with top repositories"
           add: "data/metrics.json"
